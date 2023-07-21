@@ -66,7 +66,7 @@ tlog.info("Initializing...")
 L, N, dx, x, nL, n = initialize_shestakov_problem()
 maxIterations, lmParams, tol = initialize_parameters()
 #fluxModel = shestakov_nonlinear_diffusion.AnalyticFluxModel(dx)
-fluxModel = XfM.dummyXGCFluxModel(dx)
+fluxModel = XfM.XGCFluxModel(dx,imode='text',omode='adios')
 
 label = 'n'
 turbHandler = tango.lodestro_method.TurbulenceHandler(dx, x, fluxModel)

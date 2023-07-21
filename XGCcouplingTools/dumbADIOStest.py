@@ -5,10 +5,12 @@ N = 20
 x = np.linspace(0.,1.,num=N)
 print(x)
 
-hi = "Hello there"
+shape = []
+start = []
+count = [N]
 
 with adios2.open('dumbadiosout.bp', 'w') as fh:
-    fh.write('array',hi)
+    fh.write('array',x,shape,start,count)
 
 
 with adios2.open('dumbadiosout.bp','r') as fh:

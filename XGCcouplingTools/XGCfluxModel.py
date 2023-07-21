@@ -6,9 +6,10 @@ import os
 import adios2
 import os.path
 import time
+import re
 
 """Shestakov Test Module"""
-class dummyXGCFluxModel(object):
+class XGCFluxModel(object):
     """Class-based interface to the flux model in the Shestakov analytic
     test problem.
     
@@ -51,12 +52,22 @@ class dummyXGCFluxModel(object):
             self.flux_data_name = writePath + 'flux' + output_ext
 
     def writeProfiles(self, profiles):
+        nx = profiles['n'].shape[0]
+        x_grid = np.linspace(0.,self.dx*(nx-1),num=nx)
         if self.imode == 'adios':
             ## Write adios profile files
             with adios2.open(self.profile_data_name, 'w') as fh:
-                fh.write('n',profiles['n'])
+                shape = []; start = []; count = [profiles['n'].shape[0]]
+                fh.write('n',profiles['n'], shape, start, count)
         elif self.imode == 'npy':
             np.save(self.profile_data_name,profiles['n'])
+        elif self.imode == 'text':
+            with open(self.profile_data_name,'w') as f:
+                f.write(str(nx) + '\n')
+                for i in range(profiles['n'].shape[0]):
+                    f. write(str(x_grid[i]) + '       ' + str(profiles['n'][i]))
+                    f.write('\n')
+                f.write('-1')
         else:
             print('MAYDAY: This profile writing mode not implemented yet')
 
@@ -66,13 +77,14 @@ class dummyXGCFluxModel(object):
         f = open(self.profile_marker_file_name,'w')
         f.close()
     
-    def get_flux(self, profiles):
+    def get_flux(self, profiles,verbose=False):
         self.writeProfiles(profiles)
         ## Wait to see a marker file indicating flux has been written
         while not os.path.exists(self.flux_marker_file_name):
             #print('Waiting for flux to exist')
             time.sleep(0.1)
-        print('Found flux file')
+        if verbose:
+            print('Found flux file')
 
         flux = {}
         if self.omode == 'adios':
@@ -82,8 +94,9 @@ class dummyXGCFluxModel(object):
             flux['n'] = np.load(self.flux_data_name)
         else:
             print('MAYDAY: This flux reading mode is not implemented yet')
-
-        os.remove(self.flux_marker_file_name) # Having fetched flux, delete flux marker file
+        
+        if os.path.exists(self.flux_marker_file_name):
+            os.remove(self.flux_marker_file_name) # Having fetched flux, delete flux marker file
 
         return flux
 
@@ -117,7 +130,7 @@ class dummyXGC(object):
             self.profile_marker_file_name = 'profilesWritten.done'
             self.flux_marker_file_name = 'fluxWritten.done'
             self.profile_data_name = 'profiles' + input_ext
-            self.flux_data_name = 'flux' + input_ext
+            self.flux_data_name = 'flux' + output_ext
         else:
             self.profile_marker_file_name = writePath + 'profilesWritten.done'
             self.flux_marker_file_name = writePath + 'fluxWritten.done'
@@ -135,20 +148,33 @@ class dummyXGC(object):
                 self.profiles['n'] = fh.read('n')
         elif self.imode == 'npy':
             self.profiles['n'] = np.load(self.profile_data_name)
+        elif self.imode == 'text':
+            with open(self.profile_data_name,'r') as f:
+                num = int(f.readline().split('\n')[0])
+                self.profiles['n'] = np.zeros(num)
+                for i in range(num):
+                    myline = f.readline()
+                    myval = re.split(' ', myline)[-1]
+                    myval = myval.split('\n')[0]
+                    self.profiles['n'][i] = float(myval)
+                
         else:
             print('MAYDAY: Selected read mode not implemented')
 
-    def writeFlux(self,termination_marker='converged.done'):
+    def writeFlux(self,termination_marker='converged.done',verbose=False):
         self.readProfiles(termination_marker=termination_marker)
-        print('Successfully read profiles')
-        os.remove(self.profile_marker_file_name) # Having read profiles, delete the profile marker file
+        if verbose:
+            print('Successfully read profiles')
+        if os.path.exists(self.profile_marker_file_name):
+            os.remove(self.profile_marker_file_name) # Having read profiles, delete the profile marker file
         n = self.profiles['n']
         flux = {}
         flux['n'] = get_flux(n, self.dx)
 
         if self.omode == 'adios':
             with adios2.open(self.flux_data_name,'w') as fh:
-                fh.write('flux_n', flux['n'])
+                shape = []; start = []; count = [flux['n'].shape[0]]
+                fh.write('flux_n', flux['n'],shape,start,count)
         elif self.omode == 'npy':
             np.save(self.flux_data_name, flux['n'])
         else:
