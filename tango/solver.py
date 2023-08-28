@@ -27,6 +27,8 @@ from . import handlers
 from . import fieldgroups
 from .utilities import util
 
+import InteriorBChandler as IBCH
+
 
 #   turbhandler to get EWMA Params?  but there is one for each field.
 class Solver(object):
@@ -203,6 +205,10 @@ class Solver(object):
         # iterate through all the fields, compute all the H's [runs the turbulence calculation]
         (HCoeffsAllFields, HCoeffsTurbAllFields, extradataAllFields) = self.compute_all_H_all_fields(self.t, self.x, self.profiles)
 
+        ### I think I want to insert a while loop here ###
+        # first_goround = True
+        # while (first_goround or (self.useWeirdBCiteration and weirdBCnotConverged) ):
+
         # create fieldGroups from fields as prelude to the iteration step
         fieldGroups = fieldgroups.fields_to_fieldgroups(self.fields, HCoeffsAllFields)
 
@@ -229,7 +235,13 @@ class Solver(object):
 
         # get the profiles for the fields out of the fieldGroups, put into a dict of profiles
         self.profiles = fieldgroups.fieldgroups_to_profiles(fieldGroups)
-        
+
+        # if self.weirdBiteration:
+        #   ## Compute profile values at inner locations, compare to desired values
+        #   ## Check for convergence, if not converged, update actual BC accordingly
+        # first_goround = False
+        ### ...and end it here ###
+
         if self.useTreadLightly:
             # tread_lightly to adjust profiles if the step is too large.  Only for finding steady state.
             self.tread_lightly(HCoeffsTurbAllFields)
